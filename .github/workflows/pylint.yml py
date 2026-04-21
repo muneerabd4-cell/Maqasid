@@ -1,0 +1,106 @@
+import streamlit as st
+import google.generativeai as genai
+import pandas as pd
+
+# --- إعدادات الصفحة ---
+st.set_page_config(page_title="منصة مقاصد الطلاب التعليمية", page_icon="🎓", layout="wide")
+
+# --- تهيئة الذاكرة (قاعدة بيانات مؤقتة) ---
+if 'db' not in st.session_state:
+    st.session_state.db = {
+        "quran": {"الفاتحة": "إعراب سورة الفاتحة التفصيلي..."},
+        "poetry": {"العصر الجاهلي": {"امرؤ القيس": "قفا نبك من ذكرى حبيب ومنزل..."}},
+        "files": [],
+        "tests": []
+    }
+if 'auth' not in st.session_state:
+    st.session_state.auth = False
+    st.session_state.user_role = None
+
+# --- وظيفة الذكاء الاصطناعي ---
+def ai_generate_quiz(topic):
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        prompt = f"أنشئ اختباراً من 5 أسئلة خيارات عن موضوع {topic} في اللغة العربية."
+        response = model.generate_content(prompt)
+        return response.text
+    except:
+        return "⚠️ يرجى ضبط مفتاح API في لوحة المطور."
+
+# --- صفحة الدخول ---
+def login():
+    st.title("🔐 بوابة دخول منصة مقاصد الطلاب")
+    tab_student, tab_admin = st.tabs(["دخول الطالب", "دخول المشرف"])
+    
+    with tab_student:
+        with st.form("st_login"):
+            st.text_input("الاسم الثلاثي")
+            st.text_input("رقم الهاتف")
+            stage = st.selectbox("المرحلة الدراسية", ["الأول", "الثاني", "الثالث"])
+            if st.form_submit_button("دخول"):
+                st.session_state.auth = True
+                st.session_state.user_role = "student"
+                st.session_state.stage = stage
+                st.rerun()
+                
+    with tab_admin:
+        admin_pin = st.text_input("رمز المشرف", type="password")
+        if st.button("دخول المطور"):
+            if admin_pin == "ADMIN_2026": # يمكنك تعديل الرمز هنا
+                st.session_state.auth = True
+                st.session_state.user_role = "admin"
+                st.rerun()
+
+# --- لوحة تحكم المطور ---
+def admin_panel():
+    st.sidebar.title("🛠 لوحة المطور")
+    menu = st.sidebar.radio("العمليات:", ["توليد أسئلة بالذكاء الاصطناعي", "إدارة القرآن والديوان", "رفع PDF ووسائط", "إعدادات النظام"])
+    
+    if menu == "توليد أسئلة بالذكاء الاصطناعي":
+        st.header("🤖 توليد اختبارات ذكية")
+        topic = st.text_input("موضوع الدرس")
+        if st.button("توليد"):
+            st.write(ai_generate_quiz(topic))
+
+    elif menu == "رفع PDF ووسائط":
+        st.header("📁 رفع الملفات التعليمية")
+        uploaded_file = st.file_uploader("اختر ملف PDF أو وسائط", type=['pdf', 'jpg', 'mp4'])
+        desc = st.text_input("وصف الملف")
+        if st.button("نشر للطالب"):
+            if uploaded_file:
+                st.session_state.db["files"].append({"name": uploaded_file.name, "desc": desc})
+                st.success("تم الرفع بنجاح")
+
+    elif menu == "إدارة القرآن والديوان":
+        st.header("📚 إضافة محتوى تعليمي")
+        cat = st.selectbox("القسم", ["القرآن", "الشعر"])
+        title = st.text_input("العنوان (اسم السورة/الشاعر)")
+        txt = st.text_area("المحتوى")
+        if st.button("حفظ"):
+            st.success("تم حفظ البيانات في القائمة")
+
+# --- لوحة الطالب ---
+def student_panel():
+    st.sidebar.title(f"مرحباً بك - {st.session_state.stage}")
+    choice = st.sidebar.radio("انتقل إلى:", ["المكتبة (PDF ووسائط)", "الاختبارات", "إعراب القرآن", "ديوان العرب"])
+    
+    if choice == "المكتبة (PDF ووسائط)":
+        st.header("📚 الوسائط والملفات المرفوعة")
+        for f in st.session_state.db["files"]:
+            st.write(f"📄 {f['name']} - {f['desc']}")
+            
+    elif choice == "الاختبارات":
+        st.header("✍️ اختبارات التقييم")
+        st.info("سيظهر هنا أي اختبار يقوم المشرف بإنشائه.")
+
+# --- التشغيل الرئيسي ---
+if not st.session_state.auth:
+    login()
+else:
+    if st.session_state.user_role == "admin":
+        admin_panel()
+    else:
+        student_panel()
+    if st.sidebar.button("تسجيل الخروج"):
+        st.session_state.auth = False
+        st.rerun()
