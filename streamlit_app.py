@@ -7,7 +7,7 @@ import json
 st.set_page_config(page_title="منصة مَقَاصِدُ الطُلَّابِ", layout="wide")
 
 # استبدل 'YOUR_API_KEY' بمفتاح Gemini الخاص بك
-GENAI_API_KEY = "YOUR_API_KEY" 
+GENAI_API_KEY = "AIzaSyD-b_B1eHC_lWor8Q42LFZ-_N6pI6KhKNs" 
 genai.configure(api_key=GENAI_API_KEY)
 
 st.markdown("""
