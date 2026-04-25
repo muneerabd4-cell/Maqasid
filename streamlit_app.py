@@ -62,7 +62,6 @@ if 'books_db' not in st.session_state:
 
 # 4. واجهة تسجيل الدخول
 if not st.session_state.logged_in:
-    # عرض الاسم البراق في مقدمة واجهة الدخول
     st.markdown('<div class="bright-title">مَقَاصِدُ الطُلَّابِ فِي الأدَبِ وَ الإِعْرَابِ</div>', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -72,12 +71,23 @@ if not st.session_state.logged_in:
         with tab_stu:
             with st.form("student_login"):
                 n = st.text_input("الاسم الثلاثي")
-                l = st.selectbox("المرحلة الدراسية", ["الأولى", "الثانية", "الثالثة", "الرابعة"])
+                # تعديل: تغيير المرحلة إلى الصف الدراسي وإضافة الخيارات الجديدة
+                l = st.selectbox("الصف الدراسي", [
+                    "الأول المتوسط", 
+                    "الثاني المتوسط", 
+                    "الثالث المتوسط", 
+                    "الرابع العلمي", 
+                    "الرابع الأدبي", 
+                    "الخامس العلمي", 
+                    "الخامس الأدبي", 
+                    "السادس العلمي", 
+                    "السادس الأدبي"
+                ])
                 if st.form_submit_button("دخول المنصة"):
                     if n:
                         st.session_state.logged_in = True
                         st.session_state.user_role = "student"
-                        st.session_state.user_info = {"الاسم": n, "المرحلة": l}
+                        st.session_state.user_info = {"الاسم": n, "الصف": l}
                         st.rerun()
                     else:
                         st.error("يرجى إدخال الاسم")
@@ -87,7 +97,7 @@ if not st.session_state.logged_in:
                 u = st.text_input("اسم المستخدم")
                 p = st.text_input("كلمة المرور", type="password")
                 if st.form_submit_button("تسجيل دخول المشرف"):
-                    if u == "admin" and p == "12345":  # يمكنك تغيير كلمة المرور هنا
+                    if u == "admin" and p == "12345": 
                         st.session_state.logged_in = True
                         st.session_state.user_role = "supervisor"
                         st.rerun()
@@ -96,26 +106,23 @@ if not st.session_state.logged_in:
 
 # 5. الواجهة الرئيسية بعد الدخول
 else:
-    # القائمة الجانبية
     with st.sidebar:
         st.markdown('<div class="sidebar-title">مَقَاصِدُ الطُلَّابِ</div>', unsafe_allow_html=True)
         if st.session_state.user_role == "supervisor":
             st.success("مرحباً بك أيها المشرف")
         else:
             st.write(f"👤 **الطالب:** {st.session_state.user_info['الاسم']}")
-            st.write(f"📚 **المرحلة:** {st.session_state.user_info['المرحلة']}")
+            st.write(f"🏫 **الصف:** {st.session_state.user_info['الصف']}")
         
         st.markdown("---")
         if st.button("تسجيل الخروج"):
             st.session_state.logged_in = False
             st.rerun()
 
-    # الاسم في أعلى الصفحة الرئيسية داخل التطبيق
     st.markdown('<div class="bright-title" style="font-size: 2.5rem;">مَقَاصِدُ الطُلَّابِ فِي الأدَبِ وَ الإِعْرَابِ</div>', unsafe_allow_html=True)
 
     tab1, tab2, tab3 = st.tabs(["📚 مكتبة الكتب العربية", "💬 غرفة النقاش", "📢 الإعلانات"])
 
-    # التبويب الأول: المكتبة
     with tab1:
         st.header("مكتبة الكتب العربية")
         
@@ -152,7 +159,6 @@ else:
                         else:
                             st.warning("⚠️ التحميل غير متاح (للقراءة فقط)")
 
-    # التبويب الثاني: المحادثة (على طراز واتساب)
     with tab2:
         st.subheader("💬 نقاشات الطلاب")
         st.chat_message("assistant").write("مرحباً بكم في منصة مقاصد الطلاب. كيف يمكننا مساعدتكم في علوم العربية اليوم؟")
@@ -160,7 +166,6 @@ else:
         if msg := st.chat_input("اكتب رسالتك أو سؤالك في الإعراب..."):
             st.chat_message("user").write(msg)
 
-    # التبويب الثالث: الإعلانات
     with tab3:
         st.subheader("📢 تنبيهات وتعليمات")
-        st.info("سيتم رفع شرح ألفية ابن مالك كاملاً في قسم المكتبة غداً إن شاء الله.")
+        st.info("سيتم رفع الملازم والكتب الخاصة بالمنهج الجديد قريباً.")
