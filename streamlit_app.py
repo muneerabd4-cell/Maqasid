@@ -1,140 +1,166 @@
 import streamlit as st
-import google.generativeai as genai
-import pandas as pd
-from datetime import datetime
 
-# --- إعدادات التهيئة والتحكم (Settings Controller) ---
-if 'app_config' not in st.session_state:
-    st.session_state.app_config = {
-        "name": "منصة مقاصد الطلاب",
-        "bg_color": "#ffffff",
-        "font_size": 18,
-        "cover_image": None
+# 1. إعدادات الصفحة
+st.set_page_config(page_title="مقاصد الطلاب", page_icon="📖", layout="wide")
+
+# 2. إضافة التنسيقات الجمالية (CSS) لاسم التطبيق البراق والواجهة
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@700&display=swap');
+
+    /* تنسيق العنوان البراق المتحرك */
+    .bright-title {
+        font-family: 'Amiri', serif;
+        font-size: 3.5rem;
+        font-weight: bold;
+        text-align: center;
+        background: linear-gradient(90deg, #FFD700, #FFFFFF, #FFD700);
+        background-size: 200% auto;
+        color: #fff;
+        text-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shine 4s linear infinite;
+        padding: 10px;
+        margin-bottom: 20px;
     }
 
-# تطبيق إعدادات المطور على واجهة التطبيق
-st.set_page_config(page_title=st.session_state.app_config["name"], layout="wide")
+    @keyframes shine {
+        to { background-position: 200% center; }
+    }
 
-# --- نظام الجلسات (Session State) ---
-if 'auth' not in st.session_state:
-    st.session_state.update({
-        "auth": False, "role": None, "user_data": {}, "otp_sent": False, "otp_verified": False
-    })
+    /* تنسيق العنوان في القائمة الجانبية */
+    .sidebar-title {
+        font-family: 'Amiri', serif;
+        font-size: 1.5rem;
+        color: #FFD700;
+        text-align: center;
+        border-bottom: 1px solid #FFD700;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
 
-# --- دالة التحقق من الهاتف (SMS Verification Simulation) ---
-def verify_phone(phone):
-    # هنا يتم الربط مع خدمة مثل Twilio أو Firebase
-    # للتبسيط سنفترض أن الكود هو 1234
-    st.session_state.otp_sent = True
-    st.info(f"تم إرسال كود التحقق إلى {phone} (تجريبياً: 1234)")
+    /* كروت الكتب */
+    .book-card {
+        padding: 20px;
+        border-radius: 15px;
+        background-color: #ffffff;
+        border-right: 8px solid #FFD700;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 15px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- واجهة الدخول المختلطة ---
-def login_screen():
-    st.title(st.session_state.app_config["name"])
-    tab1, tab2 = st.tabs(["👨‍🎓 بوابة الطالب", "🔐 بوابة المشرف"])
+# 3. إدارة الحالة (Session State)
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.user_role = None
+    st.session_state.user_info = {}
+if 'books_db' not in st.session_state:
+    st.session_state.books_db = []
 
-    with tab1:
-        name = st.text_input("اسم الطالب الثلاثي")
-        grade = st.selectbox("الصف الدراسي", [
-            "الأول متوسط", "الثاني المتوسط", "الثالث المتوسط", 
-            "الرابع العلمي", "الرابع الأدبي", "الخامس العلمي", 
-            "الخامس الأدبي", "السادس العلمي", "السادس الأدبي"
-        ])
-        phone = st.text_input("رقم الهاتف (مثال: +964...)")
-        
-        if not st.session_state.otp_sent:
-            if st.button("إرسال كود التحقق"):
-                verify_phone(phone)
-        else:
-            otp = st.text_input("أدخل كود التحقق المستلم")
-            if st.button("تأكيد الدخول"):
-                if otp == "1234":
-                    st.session_state.update({"auth": True, "role": "student", "user_data": {"name": name, "grade": grade, "phone": phone}})
-                    st.rerun()
-
-    with tab2:
-        admin_user = st.text_input("اسم المشرف")
-        admin_pass = st.text_input("كلمة المرور", type="password")
-        if st.button("دخول المشرف"):
-            if admin_pass == "admin2026": # كلمة السر الافتراضية
-                st.session_state.update({"auth": True, "role": "admin"})
-                st.rerun()
-
-# --- لوحة تحكم المشرف (Admin Dashboard) ---
-def admin_interface():
-    st.markdown(f"### 🛠 لوحة تحكم: {st.session_state.app_config['name']}")
-    menu = st.tabs([
-        "إعراب القرآن", "ديوان العرب", "توليد الأسئلة AI", "البث المباشر", 
-        "الرسائل", "إدارة الأعضاء", "الرفع", "المشرفين", "⚙️ الإعدادات"
-    ])
-
-    with menu[2]: # توليد الأسئلة
-        st.header("🤖 توليد بالذكاء الاصطناعي (Gemini)")
-        topic = st.text_input("موضوع الاختبار")
-        num_q = st.number_input("عدد الأسئلة", 1, 50)
-        q_type = st.radio("نوع الإجابة", ["خيارات متعددة", "ردود نصية"])
-        if st.button("توليد ونشر"):
-            st.success("تم التوليد والنشر لصفحة الطلاب")
-
-    with menu[3]: # البث المباشر
-        st.header("📺 غرفة البث المباشر")
-        st.radio("نوع البث", ["صوت فقط", "صوت وصورة"])
-        st.button("بدء البث المباشر")
-        st.warning("يتطلب هذا القسم ربط خدمة WebRTC أو Zoom SDK")
-
-    with menu[5]: # إدارة الأعضاء
-        st.header("👥 قاعدة بيانات الطلاب")
-        # مثال لبيانات طالب
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.write("الاسم: أحمد علي")
-            if st.button("📞 اتصال"): pass
-        with col2:
-            st.write("المرحلة: السادس العلمي")
-            st.link_button("💬 واتساب", "https://wa.me/9640000000")
-        with col3:
-            st.button("📄 ملف الطالب")
-
-    with menu[8]: # الإعدادات
-        st.header("⚙️ السيطرة الكاملة")
-        st.session_state.app_config["name"] = st.text_input("اسم التطبيق", st.session_state.app_config["name"])
-        st.color_picker("لون الخلفية العام", "#ffffff")
-        if st.button("حفظ الإعدادات"): st.rerun()
-
-# --- واجهة الطالب (Student Interface) ---
-def student_interface():
-    st.title(f"مرحباً، {st.session_state.user_data['name']}")
+# 4. واجهة تسجيل الدخول
+if not st.session_state.logged_in:
+    # عرض الاسم البراق في مقدمة واجهة الدخول
+    st.markdown('<div class="bright-title">مَقَاصِدُ الطُلَّابِ فِي الأدَبِ وَ الإِعْرَابِ</div>', unsafe_allow_html=True)
     
-    # التبويبات في الأسفل (محاكاة عبر الأعمدة)
-    content_area = st.container(height=500)
-    
-    st.markdown("---")
-    cols = st.columns(6)
-    with cols[0]: 
-        if st.button("📖 القرآن"): st.session_state.student_view = "quran"
-    with cols[1]:
-        if st.button("📜 الديوان"): st.session_state.student_view = "poetry"
-    with cols[2]:
-        if st.button("📁 ملفات"): st.session_state.student_view = "files"
-    with cols[3]:
-        if st.button("🎥 وسائط"): st.session_state.student_view = "media"
-    with cols[4]:
-        if st.button("💬 مراسلة"): st.session_state.student_view = "chat"
-    with cols[5]:
-        if st.button("📞 الرد"): st.session_state.student_view = "call"
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        tab_stu, tab_sup = st.tabs(["🎓 دخول الطالب", "🔑 دخول المشرف"])
 
-    # منطقة العرض بناءً على اختيار التبويب السفلي
-    view = st.session_state.get("student_view", "quran")
-    with content_area:
-        if view == "quran": st.header("📖 إعراب القرآن الكريم")
-        elif view == "poetry": st.header("📜 ديوان العرب")
-        elif view == "call": st.header("📞 استقبال البث / الاتصال")
+        with tab_stu:
+            with st.form("student_login"):
+                n = st.text_input("الاسم الثلاثي")
+                l = st.selectbox("المرحلة الدراسية", ["الأولى", "الثانية", "الثالثة", "الرابعة"])
+                if st.form_submit_button("دخول المنصة"):
+                    if n:
+                        st.session_state.logged_in = True
+                        st.session_state.user_role = "student"
+                        st.session_state.user_info = {"الاسم": n, "المرحلة": l}
+                        st.rerun()
+                    else:
+                        st.error("يرجى إدخال الاسم")
 
-# --- تشغيل التطبيق ---
-if not st.session_state.auth:
-    login_screen()
+        with tab_sup:
+            with st.form("supervisor_login"):
+                u = st.text_input("اسم المستخدم")
+                p = st.text_input("كلمة المرور", type="password")
+                if st.form_submit_button("تسجيل دخول المشرف"):
+                    if u == "admin" and p == "12345":  # يمكنك تغيير كلمة المرور هنا
+                        st.session_state.logged_in = True
+                        st.session_state.user_role = "supervisor"
+                        st.rerun()
+                    else:
+                        st.error("بيانات المشرف غير صحيحة")
+
+# 5. الواجهة الرئيسية بعد الدخول
 else:
-    if st.session_state.role == "admin":
-        admin_interface()
-    else:
-        student_interface()
+    # القائمة الجانبية
+    with st.sidebar:
+        st.markdown('<div class="sidebar-title">مَقَاصِدُ الطُلَّابِ</div>', unsafe_allow_html=True)
+        if st.session_state.user_role == "supervisor":
+            st.success("مرحباً بك أيها المشرف")
+        else:
+            st.write(f"👤 **الطالب:** {st.session_state.user_info['الاسم']}")
+            st.write(f"📚 **المرحلة:** {st.session_state.user_info['المرحلة']}")
+        
+        st.markdown("---")
+        if st.button("تسجيل الخروج"):
+            st.session_state.logged_in = False
+            st.rerun()
+
+    # الاسم في أعلى الصفحة الرئيسية داخل التطبيق
+    st.markdown('<div class="bright-title" style="font-size: 2.5rem;">مَقَاصِدُ الطُلَّابِ فِي الأدَبِ وَ الإِعْرَابِ</div>', unsafe_allow_html=True)
+
+    tab1, tab2, tab3 = st.tabs(["📚 مكتبة الكتب العربية", "💬 غرفة النقاش", "📢 الإعلانات"])
+
+    # التبويب الأول: المكتبة
+    with tab1:
+        st.header("مكتبة الكتب العربية")
+        
+        if st.session_state.user_role == "supervisor":
+            with st.expander("➕ إضافة كتاب جديد (للمشرف فقط)"):
+                b_name = st.text_input("اسم الكتاب أو المخطوطة")
+                b_file = st.file_uploader("ارفع الكتاب بصيغة PDF", type="pdf")
+                b_opt = st.radio("خيارات الطالب:", ["للقراءة فقط", "للقراءة والتحميل"])
+                if st.button("نشر الكتاب"):
+                    if b_name and b_file:
+                        st.session_state.books_db.append({
+                            "name": b_name,
+                            "data": b_file.getvalue(),
+                            "download": True if "والتحميل" in b_opt else False
+                        })
+                        st.success("تمت إضافة الكتاب للمكتبة بنجاح!")
+                    else:
+                        st.error("يرجى إكمال بيانات الكتاب")
+
+        st.markdown("---")
+        if not st.session_state.books_db:
+            st.info("المكتبة خالية حالياً، بانتظار رفع الكتب من قبل المشرف.")
+        else:
+            for book in st.session_state.books_db:
+                with st.container():
+                    st.markdown(f'<div class="book-card"><h3>📖 {book["name"]}</h3></div>', unsafe_allow_html=True)
+                    c1, c2 = st.columns([1, 1])
+                    with c1:
+                        if st.button(f"فتح لقراءة {book['name']}", key=f"v_{book['name']}"):
+                            st.toast(f"يتم الآن فتح {book['name']}...")
+                    with c2:
+                        if book['download'] or st.session_state.user_role == "supervisor":
+                            st.download_button("📥 تحميل النسخة", data=book['data'], file_name=f"{book['name']}.pdf", key=f"d_{book['name']}")
+                        else:
+                            st.warning("⚠️ التحميل غير متاح (للقراءة فقط)")
+
+    # التبويب الثاني: المحادثة (على طراز واتساب)
+    with tab2:
+        st.subheader("💬 نقاشات الطلاب")
+        st.chat_message("assistant").write("مرحباً بكم في منصة مقاصد الطلاب. كيف يمكننا مساعدتكم في علوم العربية اليوم؟")
+        
+        if msg := st.chat_input("اكتب رسالتك أو سؤالك في الإعراب..."):
+            st.chat_message("user").write(msg)
+
+    # التبويب الثالث: الإعلانات
+    with tab3:
+        st.subheader("📢 تنبيهات وتعليمات")
+        st.info("سيتم رفع شرح ألفية ابن مالك كاملاً في قسم المكتبة غداً إن شاء الله.")
