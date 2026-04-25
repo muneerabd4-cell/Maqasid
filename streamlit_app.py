@@ -97,7 +97,7 @@ if not st.session_state.logged_in:
                 u = st.text_input("اسم المستخدم")
                 p = st.text_input("كلمة المرور", type="password")
                 if st.form_submit_button("تسجيل دخول المشرف"):
-                    if u == "admin" and p == "12345": 
+                    if u == "memom" and p == "873422": 
                         st.session_state.logged_in = True
                         st.session_state.user_role = "supervisor"
                         st.rerun()
